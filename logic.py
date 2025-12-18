@@ -19,54 +19,125 @@ GameState = Dict[str, object]
 
 
 def build_symbol_pool(rows: int, cols: int) -> List[str]:
-    """Crea la lista de símbolos necesaria para rellenar todo el tablero.
-
-    Sugerencia: parte de un listado básico de caracteres y duplícalo tantas
-    veces como parejas necesites. Después baraja el resultado.
-    """
-
-    raise NotImplementedError
+    """Crea la lista de símbolos necesaria para rellenar todo el tablero. """
+    
+    num_pairs = (rows * cols) // 2
+    
+    # Fuente de símbolos (letras, números y caracteres especiales)
+    available_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%&?+*"
+    
+    # Aseguro tener suficientes símbolos repitiendo la cadena si el tablero es muy grande
+    while len(available_chars) < num_pairs:
+        available_chars += available_chars
+        
+    # Selecciono solo los necesarios y los duplicamos
+    selected_symbols = list(available_chars[:num_pairs])
+    deck = selected_symbols * 2
+    
+    # Barajo la lista
+    random.shuffle(deck)
+    
+    return deck
 
 
 def create_game(rows: int, cols: int) -> GameState:
-    """Genera el diccionario con el estado inicial del juego.
+    """Genera el diccionario con el estado inicial del juego."""
 
-    El estado debe incluir:
-    - ``board``: lista de listas con cartas (cada carta es un dict con
-      ``symbol`` y ``state``).
-    - ``pending``: lista de posiciones descubiertas en el turno actual.
-    - ``moves``: contador de movimientos realizados.
-    - ``matches``: parejas acertadas.
-    - ``total_pairs``: número total de parejas disponibles.
-    - ``rows`` / ``cols``: dimensiones del tablero.
-    """
+    deck = build_symbol_pool(rows, cols)
+    board = []
 
-    raise NotImplementedError
+    # Construyo el tablero fila a fila
+    for _ in range(rows):
+        row_list = []
+        for _ in range(cols):
+            # Saco una carta de la baraja mezclada
+            symbol = deck.pop()
+            card = {
+                "symbol": symbol,
+                "state": STATE_HIDDEN
+            }
+            row_list.append(card)
+        board.append(row_list)
+
+    return {
+        "board": board,
+        "pending": [],      # Lista de coordenadas [(fil, col)] de cartas volteadas
+        "moves": 0,         # Contador de turnos
+        "matches": 0,       # Contador de parejas encontradas
+        "total_pairs": (rows * cols) // 2,
+        "rows": rows,
+        "cols": cols
+    }
+    
+
 
 
 def reveal_card(game: GameState, row: int, col: int) -> bool:
-    """Intenta descubrir la carta ubicada en ``row``, ``col``.
+    """Intenta descubrir la carta ubicada en ``row``, ``col``."""
 
-    Debe devolver ``True`` si el estado ha cambiado (es decir, la carta estaba
-    oculta y ahora está visible) y ``False`` en cualquier otro caso. No permitas
-    dar la vuelta a más de dos cartas simultáneamente.
-    """
+    board = game["board"]
+    pending = game["pending"]
 
-    raise NotImplementedError
+    # Valido coordenadas 
+    if not (0 <= row < game["rows"] and 0 <= col < game["cols"]):
+        return False
+
+    card = board[row][col]
+
+    # Si la carta ya está visible o encontrada, no hago nada
+    if card["state"] != STATE_HIDDEN:
+        return False
+
+    # Si ya hay 2 cartas levantadas esperando resolución, no permito levantar una tercera
+    if len(pending) >= 2:
+        return False
+
+    # Revelo la carta y la añado a pendientes
+    card["state"] = STATE_VISIBLE
+    pending.append((row, col))
+
+    return True
 
 
 def resolve_pending(game: GameState) -> Tuple[bool, bool]:
-    """Resuelve el turno si hay dos cartas pendientes.
+    """Resuelve el turno si hay dos cartas pendientes."""
 
-    Devuelve una tupla ``(resuelto, pareja_encontrada)``. Este método debe
-    ocultar las cartas si son diferentes o marcarlas como ``found`` cuando
-    coincidan. Además, incrementa ``moves`` y ``matches`` según corresponda.
-    """
+    pending = game["pending"]
+    board = game["board"]
 
-    raise NotImplementedError
+    # Si no hay 2 cartas pendientes, no hay nada que resolver
+    if len(pending) != 2:
+        return False, False
+
+    # Recupero las coordenadas y las cartas
+    pos1 = pending[0]
+    pos2 = pending[1]
+    card1 = board[pos1[0]][pos1[1]]
+    card2 = board[pos2[0]][pos2[1]]
+
+    match_found = False
+
+    # Comparo símbolos
+    if card1["symbol"] == card2["symbol"]:
+        # ¡Son pareja!
+        card1["state"] = STATE_FOUND
+        card2["state"] = STATE_FOUND
+        game["matches"] += 1
+        match_found = True
+    else:
+        # No coinciden, las vuelvo a ocultar
+        card1["state"] = STATE_HIDDEN
+        card2["state"] = STATE_HIDDEN
+
+    # En ambos casos, el turno termina por lo que aumento movimientos y limpio pendientes
+    game["moves"] += 1
+    game["pending"] = [] # Vacio la lista para el siguiente turno
+
+    # Devuelvo (True porque se resolvió, y si hubo match o no)
+    return True, match_found
 
 
 def has_won(game: GameState) -> bool:
     """Indica si se han encontrado todas las parejas."""
 
-    raise NotImplementedError
+    return game["matches"] == game["total_pairs"]
