@@ -1,7 +1,6 @@
 """Plantilla con las funciones que el alumnado debe completar para M3.
 
-La capa gráfica llama a estas funciones para mover el estado del juego. No es
-necesario crear clases; basta con manipular listas, diccionarios y tuplas.
+David Espina Apellaniz Grupo DEA
 """
 from __future__ import annotations
 
